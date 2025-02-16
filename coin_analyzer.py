@@ -3,16 +3,12 @@ from api import fetch_reddit_data
 import time
 
 def analyze_new_coins():
-    # Step 1: Get new coin listings from Binance
-    new_coins = get_binance_announcements()  # This returns ["coin1", "coin2", ...]
+    new_coins = get_binance_announcements()
     if not new_coins:
         print("No new coins found")
         return
-    
-    # Store results for all coins
     coin_discussions = {}
-    
-    # Step 2: For each coin, fetch Reddit discussions
+
     for coin in new_coins:
         print(f"\nAnalyzing discussions for {coin}...")
         search_query = f"{coin}"
@@ -24,10 +20,8 @@ def analyze_new_coins():
         else:
             print(f"No discussions found for {coin}")
         
-        # Respect Reddit's rate limits
         time.sleep(2)
     
-    # Print and return results
     for coin, posts in coin_discussions.items():
         print(f"\n{'='*40}")
         print(f"Discussions for {coin}:")
@@ -44,4 +38,4 @@ def analyze_new_coins():
     return coin_discussions
 
 if __name__ == "__main__":
-    analyze_new_coins() 
+    analyze_new_coins()
