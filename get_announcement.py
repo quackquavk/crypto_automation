@@ -43,8 +43,8 @@ def get_binance_announcements():
         for text in announcement_texts:
             print(f"- {text}")
             new_coins.append(text)
-        print(new_coins[5:])        
-        return announcement_texts
+        print(new_coins[5:] , "coins")        
+        return new_coins[5:]
             
     except Exception as e:
         print(f"An error occurred: {str(e)}")
