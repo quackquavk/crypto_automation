@@ -13,7 +13,7 @@ def analyze_new_coins(save_to_file: bool = True) -> Dict[str, Dict]:
     """
     # Step 1: Get new coin listings from Binance
     print("\n1. Fetching new coin listings from Binance...")
-    new_coins = get_binance_announcements()
+    new_coins =  ['solayer' , '1000chems' , 'Berachain'] # get_binance_announcements()
     if not new_coins:
         print("No new coins found")
         return {}

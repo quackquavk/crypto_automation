@@ -5,65 +5,44 @@ import json
 
 # Initialize Ollama with the model
 llm = OllamaLLM(
-    model="llama3.1:8b",  # Use your specific model
-    temperature=0.1,
-    format="json"
+    model="llama3.1:8b",  # Change this to "llama2:13b" or your specific model "llama3.1:8b"
+    temperature=0.1,  # Lower temperature for more consistent outputs
+    format="json"  # Request JSON format specifically
 )
 
-# Create a more refined prompt template for sentiment analysis
+# Modify the template to be more explicit about JSON formatting
 SENTIMENT_TEMPLATE = """
-You are a professional cryptocurrency market analyst with expertise in sentiment analysis and market trends. Your task is to analyze Reddit discussions about {coin_name} and provide an objective analysis.
+You are a professional cryptocurrency market analyst. Analyze the Reddit discussions about {coin_name} and provide an analysis in VALID JSON format.
 
 Context:
 - Coin Name: {coin_name}
-- Number of Posts Analyzed: {post_count}
+- Number of Posts: {post_count}
 - Time Frame: Recent discussions
 
-Reddit Discussions to Analyze:
+Reddit Discussions:
 {reddit_posts}
 
-Instructions:
-1. Carefully read each post and its engagement metrics
-2. Consider the following aspects:
-   - Overall community sentiment
-   - Technical discussion quality
-   - Concerns and criticisms
-   - Development and adoption potential
-   - Market speculation patterns
-3. Identify recurring themes and significant points
-4. Evaluate the credibility of discussions
-5. Assess risk factors and growth opportunities
-
-Provide your analysis in the following JSON format, ensuring each field is properly filled:
-{
-    "overall_sentiment": "<CHOOSE ONE: positive/neutral/negative>",
-    "confidence_score": "<NUMBER 0-100>",
+RESPOND ONLY WITH A VALID JSON OBJECT in this exact format:
+{{
+    "overall_sentiment": "positive/neutral/negative",
+    "confidence_score": "0-100",
     "key_points": [
-        "Most significant discussion points",
-        "Notable community concerns",
-        "Prominent technical aspects"
+        "point1",
+        "point2",
+        "point3"
     ],
     "risks": [
-        "Identified risk factors",
-        "Potential vulnerabilities"
+        "risk1",
+        "risk2"
     ],
     "opportunities": [
-        "Growth potential",
-        "Development milestones",
-        "Market advantages"
+        "opportunity1",
+        "opportunity2"
     ],
-    "recommendation": "<CONCISE actionable trading or investment recommendation>"
-}
+    "recommendation": "brief recommendation"
+}}
 
-Requirements:
-- Be objective and data-driven in your analysis
-- Base conclusions on the provided discussions only
-- Maintain professional analytical language
-- Ensure the response is in valid JSON format
-- Provide specific, not generic, insights
-- Consider both technical and sentiment factors
-
-Analysis:
+Ensure your response is ONLY the JSON object, with no additional text or formatting.
 """
 
 sentiment_prompt = PromptTemplate(
@@ -92,7 +71,7 @@ def analyze_coin_sentiment(coin_name: str, reddit_posts: List[Dict]) -> Dict:
         formatted_posts = format_reddit_posts(reddit_posts)
         post_count = len(reddit_posts)
         
-        # Generate the prompt with post count
+        # Generate the prompt
         prompt = sentiment_prompt.format(
             coin_name=coin_name,
             reddit_posts=formatted_posts,
@@ -102,18 +81,38 @@ def analyze_coin_sentiment(coin_name: str, reddit_posts: List[Dict]) -> Dict:
         # Get LLM response
         response = llm.invoke(prompt)
         
+        # Clean the response if needed (remove any leading/trailing whitespace and newlines)
+        if isinstance(response, str):
+            response = response.strip()
+            
+            # Try to find JSON content
+            try:
+                # Find the first '{' and last '}'
+                start = response.find('{')
+                end = response.rfind('}') + 1
+                if start != -1 and end != 0:
+                    response = response[start:end]
+            except:
+                pass
+        
         # Parse JSON response
         try:
-            analysis = json.loads(response)
+            if isinstance(response, dict):
+                analysis = response
+            else:
+                analysis = json.loads(response)
+                
             # Validate required fields
             required_fields = ['overall_sentiment', 'confidence_score', 'key_points', 
                              'risks', 'opportunities', 'recommendation']
             if not all(field in analysis for field in required_fields):
-                raise json.JSONDecodeError("Missing required fields", response, 0)
+                raise json.JSONDecodeError("Missing required fields", str(response), 0)
             
-        except json.JSONDecodeError:
-            print(f"Warning: Invalid JSON response for {coin_name}. Using fallback analysis.")
-            analysis = {
+            return analysis
+            
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f"Warning: Invalid JSON response for {coin_name}. Error: {str(e)}")
+            return {
                 "overall_sentiment": "neutral",
                 "confidence_score": "0",
                 "key_points": [
@@ -125,8 +124,6 @@ def analyze_coin_sentiment(coin_name: str, reddit_posts: List[Dict]) -> Dict:
                 "opportunities": ["Manual analysis recommended"],
                 "recommendation": "Insufficient data for automated analysis. Please review manually."
             }
-        
-        return analysis
         
     except Exception as e:
         print(f"Error analyzing {coin_name}: {str(e)}")
